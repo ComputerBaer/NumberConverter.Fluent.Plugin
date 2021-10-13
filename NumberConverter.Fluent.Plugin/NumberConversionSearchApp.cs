@@ -83,7 +83,7 @@ namespace NumberConverter.Fluent.Plugin
             }
 
             // Check that the searched text is a number
-            if (!ParseNumber(searchedText, out int number, ref conversionType))
+            if (!ParseNumber(searchedText, out int number, out ConversionType numberType, ref conversionType) || numberType == ConversionType.None)
             {
                 yield break;
             }
@@ -119,16 +119,17 @@ namespace NumberConverter.Fluent.Plugin
             NumberConversionSearchResult CreateResult(string prefix, string converted, bool copyPrefix, bool showPrefix, ConversionType resultType)
             {
                 return new NumberConversionSearchResult(number, SearchAppName, $"{(copyPrefix ? prefix : "")}{converted}", 
-                    $"{searchedText} = {(showPrefix ? prefix : "")}{converted}", searchedText, resultType.ToString(), 2,
-                    _supportedOperations, _searchTags);
+                    $"{searchedText} = {(showPrefix ? prefix : "")}{converted}",
+                    searchedText, resultType.ToString(), 2, _supportedOperations, _searchTags);
             }
         }
 
-        private bool ParseNumber(string input, out int result, ref ConversionType conversionType)
+        private bool ParseNumber(string input, out int result, out ConversionType resultType, ref ConversionType targetType)
         {
             if (string.IsNullOrWhiteSpace(input))
             {
                 result = -1;
+                resultType = ConversionType.None;
                 return false;
             }
 
@@ -136,7 +137,8 @@ namespace NumberConverter.Fluent.Plugin
             if (int.TryParse(input, out int number))
             {
                 result = number;
-                conversionType = conversionType == ConversionType.Any ? ~ConversionType.Dec : conversionType;
+                resultType = ConversionType.Dec;
+                targetType = targetType == ConversionType.Any ? ~ConversionType.Dec : targetType;
                 return true;
             }
 
@@ -146,7 +148,8 @@ namespace NumberConverter.Fluent.Plugin
                 if (input.Length > 2 && HexNumberRegex.IsMatch(input[2..]))
                 {
                     result = Convert.ToInt32(input, 16);
-                    conversionType = conversionType == ConversionType.Any ? ~ConversionType.Hex : conversionType;
+                    resultType = ConversionType.Hex;
+                    targetType = targetType == ConversionType.Any ? ~ConversionType.Hex : targetType;
                     return true;
                 }
             }
@@ -156,7 +159,8 @@ namespace NumberConverter.Fluent.Plugin
                 if (input.Length > 1 && OctNumberRegex.IsMatch(input[1..]))
                 {
                     result = Convert.ToInt32(input, 8);
-                    conversionType = conversionType == ConversionType.Any ? ~ConversionType.Oct : conversionType;
+                    resultType = ConversionType.Oct;
+                    targetType = targetType == ConversionType.Any ? ~ConversionType.Oct : targetType;
                     return true;
                 }
             }
@@ -166,12 +170,14 @@ namespace NumberConverter.Fluent.Plugin
                 if (input.Length > 2 && BinNumberRegex.IsMatch(input[2..]))
                 {
                     result = Convert.ToInt32(input[2..], 2);
-                    conversionType = conversionType == ConversionType.Any ? ~ConversionType.Bin : conversionType;
+                    resultType = ConversionType.Bin;
+                    targetType = targetType == ConversionType.Any ? ~ConversionType.Bin : targetType;
                     return true;
                 }
             }
 
             result = -1;
+            resultType = ConversionType.None;
             return false;
         }
 
