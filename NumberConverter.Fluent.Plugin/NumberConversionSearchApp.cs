@@ -55,12 +55,38 @@ namespace NumberConverter.Fluent.Plugin
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested || searchRequest.SearchType == SearchType.SearchProcess)
+            {
                 yield break;
+            }
+
             string searchedTag = searchRequest.SearchedTag;
-            string searchedText = searchRequest.SearchedText;
-            
+            string searchedText = searchRequest.SearchedText.Trim();
+
+            // Check that the searched text is a number
+            bool isNumber = int.TryParse(searchedText, out int number);
+            if (!isNumber && !string.IsNullOrWhiteSpace(searchedText))
+            {
+                try
+                {
+                    if (searchedText.StartsWith("0x") && searchedText.Length > 2)
+                    {
+                        number = Convert.ToInt32(searchedText, 16);
+                        isNumber = true;
+                    }
+                    else if (searchedText.StartsWith("0b") && searchedText.Length > 2)
+                    {
+                        number = Convert.ToInt32(searchedText, 2);
+                        isNumber = true;
+                    }
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
+            }
+
             // Check that the search tag is something this app can handle and the searched text is a number
-            if (string.IsNullOrWhiteSpace(searchedTag) || !int.TryParse(searchedText, out int number) ||
+            if (string.IsNullOrWhiteSpace(searchedTag) || !isNumber ||
                 !Enum.TryParse(searchedTag, true, out ConversionType conversionType))
             {
                 yield break;
