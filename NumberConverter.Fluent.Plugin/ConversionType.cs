@@ -11,6 +11,6 @@ namespace NumberConverter.Fluent.Plugin
         Bin = 0x1,
         Oct = 0x2,
         Dec = 0x4,
-        Hex = 0x08
+        Hex = 0x8
     }
 }

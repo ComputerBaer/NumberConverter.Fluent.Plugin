@@ -99,7 +99,7 @@ namespace NumberConverter.Fluent.Plugin
             if (conversionType.HasFlag(ConversionType.Oct))
             {
                 string convertedNumber = Convert.ToString(number, 8);
-                yield return CreateResult("0", convertedNumber, _appSettings.CopyOctPrefix, _appSettings.ShowOctPrefix, ConversionType.Oct);
+                yield return CreateResult("0o", convertedNumber, _appSettings.CopyOctPrefix, _appSettings.ShowOctPrefix, ConversionType.Oct);
             }
 
             // Convert number to decimal
@@ -156,9 +156,9 @@ namespace NumberConverter.Fluent.Plugin
             // parse octal number
             else if (input.StartsWith("0o", StringComparison.InvariantCultureIgnoreCase))
             {
-                if (input.Length > 1 && OctNumberRegex.IsMatch(input[1..]))
+                if (input.Length > 2 && OctNumberRegex.IsMatch(input[2..]))
                 {
-                    result = Convert.ToInt32(input, 8);
+                    result = Convert.ToInt32(input[2..], 8);
                     resultType = ConversionType.Oct;
                     targetType = targetType == ConversionType.Any ? ~ConversionType.Oct : targetType;
                     return true;
