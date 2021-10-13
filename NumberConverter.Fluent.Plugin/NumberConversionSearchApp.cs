@@ -15,6 +15,7 @@ namespace NumberConverter.Fluent.Plugin
     {
         private const string SearchAppName = "NumberConvertor";
         private static readonly Regex BinNumberRegex = new("^[01]{1,32}$", RegexOptions.Compiled);
+        private static readonly Regex OctNumberRegex = new("^[0-7]{1,11}$", RegexOptions.Compiled);
         private static readonly Regex HexNumberRegex = new("^[0-9A-F]{1,8}$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly List<SearchTag> _searchTags;
@@ -27,8 +28,10 @@ namespace NumberConverter.Fluent.Plugin
             // For icon glyphs look at https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
             _searchTags = new List<SearchTag>
             {
-                new() { Name = ConversionType.Hex.ToString(), IconGlyph = "\uE8EF", Description = "Convert to hex" },
-                new() { Name = ConversionType.Binary.ToString(), IconGlyph = "\uE8EF", Description = "Convert to binary" }
+                new() { Name = ConversionType.Bin.ToString(), IconGlyph = "\uE8EF", Description = "Convert to binary" },
+                new() { Name = ConversionType.Oct.ToString(), IconGlyph = "\uE8EF", Description = "Convert to octal" },
+                new() { Name = ConversionType.Dec.ToString(), IconGlyph = "\uE8EF", Description = "Convert to decimal" },
+                new() { Name = ConversionType.Hex.ToString(), IconGlyph = "\uE8EF", Description = "Convert to hex" }
             };
 
             _supportedOperations = new List<ISearchOperation>
@@ -85,18 +88,31 @@ namespace NumberConverter.Fluent.Plugin
                 yield break;
             }
 
+            // Convert number to binary
+            if (conversionType.HasFlag(ConversionType.Bin))
+            {
+                string convertedNumber = Convert.ToString(number, 2);
+                yield return CreateResult("0b", convertedNumber, _appSettings.CopyBinPrefix, _appSettings.ShowBinPrefix, ConversionType.Bin);
+            }
+
+            // Convert number to octal
+            if (conversionType.HasFlag(ConversionType.Oct))
+            {
+                string convertedNumber = Convert.ToString(number, 8);
+                yield return CreateResult("0", convertedNumber, _appSettings.CopyOctPrefix, _appSettings.ShowOctPrefix, ConversionType.Oct);
+            }
+
+            // Convert number to decimal
+            if (conversionType.HasFlag(ConversionType.Dec))
+            {
+                yield return CreateResult("", $"{number}", false, false, ConversionType.Dec);
+            }
+
             // Convert number to hex
-            if (conversionType is ConversionType.Any or ConversionType.Hex)
+            if (conversionType.HasFlag(ConversionType.Hex))
             {
                 string convertedNumber = $"{number:X}";
                 yield return CreateResult("0x", convertedNumber, _appSettings.CopyHexPrefix, _appSettings.ShowHexPrefix, ConversionType.Hex);
-            }
-
-            // Convert number to binary
-            if (conversionType is ConversionType.Any or ConversionType.Binary)
-            {
-                string convertedNumber = Convert.ToString(number, 2);
-                yield return CreateResult("0b", convertedNumber, _appSettings.CopyBinPrefix, _appSettings.ShowBinPrefix, ConversionType.Binary);
             }
 
             // Local helper function for result creation
@@ -116,29 +132,41 @@ namespace NumberConverter.Fluent.Plugin
                 return false;
             }
 
+            // parse decimal number
             if (int.TryParse(input, out int number))
             {
                 result = number;
+                conversionType = conversionType == ConversionType.Any ? ~ConversionType.Dec : conversionType;
                 return true;
             }
 
             // parse hex number
-            if (input.StartsWith("0x"))
+            if (input.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
             {
                 if (input.Length > 2 && HexNumberRegex.IsMatch(input[2..]))
                 {
                     result = Convert.ToInt32(input, 16);
-                    conversionType = conversionType == ConversionType.Any ? ConversionType.Binary : conversionType;
+                    conversionType = conversionType == ConversionType.Any ? ~ConversionType.Hex : conversionType;
+                    return true;
+                }
+            }
+            // parse octal number
+            else if (input.StartsWith("0o", StringComparison.InvariantCultureIgnoreCase))
+            {
+                if (input.Length > 1 && OctNumberRegex.IsMatch(input[1..]))
+                {
+                    result = Convert.ToInt32(input, 8);
+                    conversionType = conversionType == ConversionType.Any ? ~ConversionType.Oct : conversionType;
                     return true;
                 }
             }
             // parse binary number
-            else if (input.StartsWith("0b"))
+            else if (input.StartsWith("0b", StringComparison.InvariantCultureIgnoreCase))
             {
                 if (input.Length > 2 && BinNumberRegex.IsMatch(input[2..]))
                 {
                     result = Convert.ToInt32(input[2..], 2);
-                    conversionType = conversionType == ConversionType.Any ? ConversionType.Hex : conversionType;
+                    conversionType = conversionType == ConversionType.Any ? ~ConversionType.Bin : conversionType;
                     return true;
                 }
             }
