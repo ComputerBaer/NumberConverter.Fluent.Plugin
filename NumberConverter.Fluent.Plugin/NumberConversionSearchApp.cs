@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Blast.Core;
@@ -13,6 +14,9 @@ namespace NumberConverter.Fluent.Plugin
     public class NumberConversionSearchApp : ISearchApplication
     {
         private const string SearchAppName = "NumberConvertor";
+        private static readonly Regex BinNumberRegex = new("^[01]{1,32}$", RegexOptions.Compiled);
+        private static readonly Regex HexNumberRegex = new("^[0-9A-F]{1,8}$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         private readonly List<SearchTag> _searchTags;
         private readonly SearchApplicationInfo _applicationInfo;
         private readonly List<ISearchOperation> _supportedOperations;
@@ -117,28 +121,26 @@ namespace NumberConverter.Fluent.Plugin
                 result = number;
                 return true;
             }
-            
-            try
+
+            // parse hex number
+            if (input.StartsWith("0x"))
             {
-                // hex number
-                if (input.StartsWith("0x") && input.Length > 2)
+                if (input.Length > 2 && HexNumberRegex.IsMatch(input[2..]))
                 {
                     result = Convert.ToInt32(input, 16);
                     conversionType = conversionType == ConversionType.Any ? ConversionType.Binary : conversionType;
                     return true;
                 }
-
-                // binary number
-                if (input.StartsWith("0b") && input.Length > 2)
+            }
+            // parse binary number
+            else if (input.StartsWith("0b"))
+            {
+                if (input.Length > 2 && BinNumberRegex.IsMatch(input[2..]))
                 {
                     result = Convert.ToInt32(input[2..], 2);
                     conversionType = conversionType == ConversionType.Any ? ConversionType.Hex : conversionType;
                     return true;
                 }
-            }
-            catch (Exception)
-            {
-                // ignored
             }
 
             result = -1;
