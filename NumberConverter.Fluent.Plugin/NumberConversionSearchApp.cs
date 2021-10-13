@@ -16,25 +16,23 @@ namespace NumberConverter.Fluent.Plugin
         private readonly List<SearchTag> _searchTags;
         private readonly SearchApplicationInfo _applicationInfo;
         private readonly List<ISearchOperation> _supportedOperations;
+        private readonly NumberConversionSearchAppSettings _appSettings;
 
         public NumberConversionSearchApp()
         {
             // For icon glyphs look at https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
             _searchTags = new List<SearchTag>
             {
-                new SearchTag
-                    {Name = ConversionType.Hex.ToString(), IconGlyph = "\uE8EF", Description = "Convert to hex"},
-                new SearchTag
-                    {Name = ConversionType.Binary.ToString(), IconGlyph = "\uE8EF", Description = "Convert to binary"}
+                new() { Name = ConversionType.Hex.ToString(), IconGlyph = "\uE8EF", Description = "Convert to hex" },
+                new() { Name = ConversionType.Binary.ToString(), IconGlyph = "\uE8EF", Description = "Convert to binary" }
             };
 
-            _supportedOperations = new List<ISearchOperation>()
+            _supportedOperations = new List<ISearchOperation>
             {
                 new ResultCopyOperation()
             };
-
-            _applicationInfo = new SearchApplicationInfo(SearchAppName,
-                "This apps converts hex to decimal", _supportedOperations)
+            
+            _applicationInfo = new SearchApplicationInfo(SearchAppName, "This apps converts hex to decimal", _supportedOperations)
             {
                 MinimumSearchLength = 1,
                 IsProcessSearchEnabled = false,
@@ -43,6 +41,7 @@ namespace NumberConverter.Fluent.Plugin
                 SearchAllTime = ApplicationSearchTime.Fast,
                 DefaultSearchTags = _searchTags
             };
+            _applicationInfo.SettingsPage = _appSettings = new NumberConversionSearchAppSettings(_applicationInfo);
         }
 
         public ValueTask LoadSearchApplicationAsync()
@@ -56,8 +55,7 @@ namespace NumberConverter.Fluent.Plugin
             return _applicationInfo;
         }
 
-        public async IAsyncEnumerable<ISearchResult> SearchAsync(SearchRequest searchRequest,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<ISearchResult> SearchAsync(SearchRequest searchRequest, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested || searchRequest.SearchType == SearchType.SearchProcess)
             {
@@ -86,18 +84,22 @@ namespace NumberConverter.Fluent.Plugin
             // Convert number to hex
             if (conversionType is ConversionType.Any or ConversionType.Hex)
             {
-                string convertedNumber = $"0x{number:X}";
-                yield return new NumberConversionSearchResult(number, SearchAppName, convertedNumber,
-                    $"{searchedText} = {convertedNumber}", searchedText, "Hex", 2,
-                    _supportedOperations, _searchTags);
+                string convertedNumber = $"{number:X}";
+                yield return CreateResult("0x", convertedNumber, _appSettings.CopyHexPrefix, _appSettings.ShowHexPrefix, ConversionType.Hex);
             }
 
             // Convert number to binary
             if (conversionType is ConversionType.Any or ConversionType.Binary)
             {
-                string convertedNumber = $"0b{Convert.ToString(number, 2)}";
-                yield return new NumberConversionSearchResult(number, SearchAppName, convertedNumber,
-                    $"{searchedText} = {convertedNumber}", searchedText, "Binary", 2,
+                string convertedNumber = Convert.ToString(number, 2);
+                yield return CreateResult("0b", convertedNumber, _appSettings.CopyBinPrefix, _appSettings.ShowBinPrefix, ConversionType.Binary);
+            }
+
+            // Local helper function for result creation
+            NumberConversionSearchResult CreateResult(string prefix, string converted, bool copyPrefix, bool showPrefix, ConversionType resultType)
+            {
+                return new NumberConversionSearchResult(number, SearchAppName, $"{(copyPrefix ? prefix : "")}{converted}", 
+                    $"{searchedText} = {(showPrefix ? prefix : "")}{converted}", searchedText, resultType.ToString(), 2,
                     _supportedOperations, _searchTags);
             }
         }
