@@ -138,7 +138,7 @@ namespace NumberConverter.Fluent.Plugin
             return false;
         }
 
-        public ValueTask<ISearchResult> GetSearchResultForId(string serializedSearchObjectId)
+        public ValueTask<ISearchResult> GetSearchResultForId(object searchObjectId)
         {
             // This is used to calculate a search result after Fluent Search has been restarted
             // This is only used by the custom search tag feature
