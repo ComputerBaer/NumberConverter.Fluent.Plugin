@@ -2,6 +2,7 @@
 {
     public enum ConversionType
     {
+        Any,
         Hex,
         Binary
     }

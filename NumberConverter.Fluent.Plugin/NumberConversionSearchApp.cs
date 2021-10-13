@@ -61,47 +61,81 @@ namespace NumberConverter.Fluent.Plugin
 
             string searchedTag = searchRequest.SearchedTag;
             string searchedText = searchRequest.SearchedText.Trim();
+            ConversionType conversionType = ConversionType.Any;
 
-            // Check that the searched text is a number
-            bool isNumber = int.TryParse(searchedText, out int number);
-            if (!isNumber && !string.IsNullOrWhiteSpace(searchedText))
+            // Check that the search tag is something this app can handle
+            if (!string.IsNullOrWhiteSpace(searchedTag))
             {
-                try
+                if (!searchedTag.Equals(SearchAppName, StringComparison.OrdinalIgnoreCase) && !Enum.TryParse(searchedTag, true, out conversionType))
                 {
-                    if (searchedText.StartsWith("0x") && searchedText.Length > 2)
-                    {
-                        number = Convert.ToInt32(searchedText, 16);
-                        isNumber = true;
-                    }
-                    else if (searchedText.StartsWith("0b") && searchedText.Length > 2)
-                    {
-                        number = Convert.ToInt32(searchedText, 2);
-                        isNumber = true;
-                    }
-                }
-                catch (Exception)
-                {
-                    // ignored
+                    yield break;
                 }
             }
 
-            // Check that the search tag is something this app can handle and the searched text is a number
-            if (string.IsNullOrWhiteSpace(searchedTag) || !isNumber ||
-                !Enum.TryParse(searchedTag, true, out ConversionType conversionType))
+            // Check that the searched text is a number
+            if (!ParseNumber(searchedText, out int number, ref conversionType))
             {
                 yield break;
             }
-            
-            var convertedNumber = conversionType switch
-            {
-                ConversionType.Hex => number.ToString("X"),
-                ConversionType.Binary => Convert.ToString(number, 2),
-                _ => throw new ArgumentOutOfRangeException()
-            };
 
-            yield return new NumberConversionSearchResult(number, SearchAppName, convertedNumber,
-                $"{conversionType} {searchedText} is {convertedNumber}", searchedText, conversionType.ToString(), 2,
-                _supportedOperations, _searchTags);
+            // Convert number to hex
+            if (conversionType is ConversionType.Any or ConversionType.Hex)
+            {
+                string convertedNumber = $"0x{number:X}";
+                yield return new NumberConversionSearchResult(number, SearchAppName, convertedNumber,
+                    $"{searchedText} = {convertedNumber}", searchedText, "Hex", 2,
+                    _supportedOperations, _searchTags);
+            }
+
+            // Convert number to binary
+            if (conversionType is ConversionType.Any or ConversionType.Binary)
+            {
+                string convertedNumber = $"0b{Convert.ToString(number, 2)}";
+                yield return new NumberConversionSearchResult(number, SearchAppName, convertedNumber,
+                    $"{searchedText} = {convertedNumber}", searchedText, "Binary", 2,
+                    _supportedOperations, _searchTags);
+            }
+        }
+
+        private bool ParseNumber(string input, out int result, ref ConversionType conversionType)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                result = -1;
+                return false;
+            }
+
+            if (int.TryParse(input, out int number))
+            {
+                result = number;
+                return true;
+            }
+            
+            try
+            {
+                // hex number
+                if (input.StartsWith("0x") && input.Length > 2)
+                {
+                    result = Convert.ToInt32(input, 16);
+                    conversionType = conversionType == ConversionType.Any ? ConversionType.Binary : conversionType;
+                    return true;
+                }
+
+                // binary number
+                if (input.StartsWith("0b") && input.Length > 2)
+                {
+                    result = Convert.ToInt32(input[2..], 2);
+                    conversionType = conversionType == ConversionType.Any ? ConversionType.Hex : conversionType;
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                // ignored
+            }
+
+            result = -1;
+            return false;
         }
 
         public ValueTask<ISearchResult> GetSearchResultForId(string serializedSearchObjectId)
