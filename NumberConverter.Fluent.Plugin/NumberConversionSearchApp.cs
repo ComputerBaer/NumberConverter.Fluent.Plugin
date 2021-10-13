@@ -27,7 +27,12 @@ namespace NumberConverter.Fluent.Plugin
                 new SearchTag
                     {Name = ConversionType.Binary.ToString(), IconGlyph = "\uE8EF", Description = "Convert to binary"}
             };
-            _supportedOperations = new List<ISearchOperation>();
+
+            _supportedOperations = new List<ISearchOperation>()
+            {
+                new ResultCopyOperation()
+            };
+
             _applicationInfo = new SearchApplicationInfo(SearchAppName,
                 "This apps converts hex to decimal", _supportedOperations)
             {
@@ -147,6 +152,17 @@ namespace NumberConverter.Fluent.Plugin
 
         public ValueTask<IHandleResult> HandleSearchResult(ISearchResult searchResult)
         {
+            if (searchResult is not NumberConversionSearchResult numberSearchResult)
+            {
+                throw new InvalidCastException(nameof(NumberConversionSearchResult));
+            }
+
+            // Copy converted number to clipboard
+            if (numberSearchResult.SelectedOperation is ResultCopyOperation)
+            {
+                TextCopy.Clipboard.SetText(numberSearchResult.ConvertedNumber);
+            }
+            
             return new(new HandleResult(true, false));
         }
     }
